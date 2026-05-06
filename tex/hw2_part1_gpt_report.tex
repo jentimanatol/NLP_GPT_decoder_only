@@ -1,15 +1,24 @@
 \documentclass[11pt]{article}
 
+% ------------------------------------------------------------
+% Final Documentation Report
+% Part I: Decoder-Only GPT Model
+% ------------------------------------------------------------
+
 \usepackage[margin=1in]{geometry}
-\usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{graphicx}
-\usepackage{xcolor}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath, amssymb}
 \usepackage{booktabs}
+\usepackage{graphicx}
+\graphicspath{{figures/}}
+\usepackage{xcolor}
 \usepackage{hyperref}
 \usepackage{enumitem}
 \usepackage{listings}
-\usepackage{courier}
+\usepackage{caption}
 
 \hypersetup{
     colorlinks=true,
@@ -18,216 +27,273 @@
     citecolor=blue
 }
 
-\lstdefinestyle{code}{
+\definecolor{codegray}{gray}{0.95}
+\definecolor{darkgray}{gray}{0.25}
+
+\lstdefinestyle{codeStyle}{
+    backgroundcolor=\color{codegray},
     basicstyle=\ttfamily\small,
     breaklines=true,
     frame=single,
+    rulecolor=\color{darkgray},
     columns=fullflexible,
-    showstringspaces=false,
-    tabsize=4
+    keepspaces=true,
+    showstringspaces=false
 }
 
-\title{Homework 2 Part I: GPT Decoder-Only Transformer for NLP}
-\author{Anatolie Jentimir\\COMP.5300: Deep Learning, LLMs, and LVMs}
+\lstset{style=codeStyle}
+
+\title{\textbf{Part I Documentation: GPT-Style Decoder-Only Transformer}\\
+\large Causal Self-Attention and Next-Token Prediction}
+\author{Anatolie Jentimir}
 \date{\today}
 
 \begin{document}
+
 \maketitle
 
-\section{Task and Dataset}
+\begin{abstract}
+This report documents the implementation and testing of a small GPT-style decoder-only Transformer model for character-level next-token prediction. The project focuses on the first part of the assignment: building an autoregressive language model using causal self-attention, training it on a text dataset, saving model artifacts, and generating text from a prompt. A quick CPU training script was added to make the project reproducible and easy to test without requiring long training time or a GPU.
+\end{abstract}
 
-For Part I, I implemented an unconditional language model using a GPT-style decoder-only Transformer. The model is trained with a causal next-token prediction objective. For a token sequence
-\[
-    x_0, x_1, x_2, \ldots, x_T,
-\]
-the model receives
-\[
-    x_{\text{in}} = x_0, x_1, \ldots, x_{T-1}
-\]
-and predicts
-\[
-    y_{\text{target}} = x_1, x_2, \ldots, x_T.
-\]
+\section{Project Goal}
 
-I used the Tiny Shakespeare dataset because it is small enough for homework-scale training while still being useful for testing autoregressive text generation. The dataset source is:
+The goal of this project is to implement and test a decoder-only Transformer similar in structure to a small GPT model. The model receives a sequence of previous tokens and predicts the next token. Because the model is autoregressive, each token is allowed to attend only to itself and previous tokens, not to future tokens.
 
-\begin{center}
-\url{https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt}
-\end{center}
+The main objectives are:
 
-The model uses character-level tokenization. I used a 90\% training and 10\% validation split. The default context length is 128 tokens. I reserved two special tokens: \texttt{PAD=0} and \texttt{EOS=1}. Padding is not central for fixed-length character chunks, but it is included for correct masking behavior and future extension.
-
-\section{Model Architecture}
-
-The model is a decoder-only Transformer implemented from scratch with basic PyTorch layers. It does not use the following forbidden prebuilt Transformer components:\ \texttt{torch.nn.Transformer}, \texttt{torch.nn.TransformerDecoder}, \texttt{torch.nn.MultiheadAttention}, or pretrained GPT blocks.
-
-The architecture contains:
-
-\begin{itemize}[noitemsep]
-    \item token embeddings, shape $(B,T) \rightarrow (B,T,d_{model})$;
-    \item learnable positional embeddings;
-    \item a stack of GPT decoder blocks;
-    \item masked multi-head self-attention;
-    \item feed-forward network with GELU activation;
-    \item residual connections and Pre-LayerNorm;
-    \item final LayerNorm;
-    \item language modeling head, shape $(B,T,d_{model}) \rightarrow (B,T,V)$.
+\begin{itemize}[leftmargin=*]
+    \item implement causal self-attention;
+    \item train the model using the next-token prediction objective;
+    \item evaluate the model using validation loss and perplexity;
+    \item save model artifacts for reproducibility;
+    \item test text generation from a starting prompt.
 \end{itemize}
 
-The default configuration used in my code is shown in Table~\ref{tab:config}.
+\section{Model Overview}
 
-\begin{table}[h]
-\centering
-\begin{tabular}{ll}
-\toprule
-Hyperparameter & Value \\
-\midrule
-Context length & 128 \\
-Embedding size $d_{model}$ & 128 \\
-Number of heads & 4 \\
-Number of decoder blocks & 2 \\
-Feed-forward size $d_{ff}$ & 512 \\
-Dropout & 0.1 \\
-Optimizer & AdamW \\
-Learning rate & $3\times10^{-4}$ \\
-Weight decay & 0.01 \\
-Seed & 42 \\
-\bottomrule
-\end{tabular}
-\caption{Default model and training configuration.}
-\label{tab:config}
-\end{table}
+The implemented model is a small decoder-only Transformer. It uses token embeddings, positional embeddings, masked self-attention blocks, feed-forward layers, normalization, and a final linear projection to predict the next character/token.
 
-\section{Causal Self-Attention and Masking}
+\subsection{Decoder-Only Architecture}
 
-The key requirement in a GPT-style decoder-only model is that each token can only attend to previous tokens and itself. Future positions must be blocked. The causal mask has shape
+A decoder-only Transformer processes an input sequence:
+
 \[
-    (1,1,T,T).
+    x_1, x_2, \dots, x_T
 \]
-It is created as an upper-triangular Boolean mask where \texttt{True} means \textit{block this position}. The attention scores have shape
+
+and predicts the next-token targets:
+
 \[
-    (B,H,T,T),
+    x_2, x_3, \dots, x_{T+1}.
 \]
-where $B$ is batch size, $H$ is the number of heads, and $T$ is sequence length.
 
-The attention computation follows:
+The model learns the probability distribution:
+
 \[
-    \text{Attention}(Q,K,V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_h}} + M\right)V,
+    P(x_{t+1} \mid x_1, x_2, \dots, x_t).
 \]
-where masked positions are replaced by a large negative value before softmax.
 
-\begin{lstlisting}[style=code, language=Python, caption={Causal and padding mask logic.}]
-def make_causal_mask(T, device):
-    return torch.triu(
-        torch.ones(T, T, dtype=torch.bool, device=device),
-        diagonal=1
-    ).unsqueeze(0).unsqueeze(0)
+This is the standard autoregressive language modeling setup. The model does not use an encoder because the task is not sequence-to-sequence translation. Instead, it learns to continue text based only on previous context.
 
-def make_padding_mask(token_ids, pad_id=0):
-    return (token_ids == pad_id).unsqueeze(1).unsqueeze(2)
+\section{Causal Self-Attention}
 
-causal_mask = make_causal_mask(T, token_ids.device)
-padding_mask = make_padding_mask(token_ids, pad_id)
-combined_mask = causal_mask | padding_mask
-scores = scores.masked_fill(combined_mask, -1e9)
-\end{lstlisting}
+The most important part of the decoder-only model is causal self-attention. In normal self-attention, every token could attend to every other token. For language generation, that would be wrong because the model would be able to look at future answers during training.
 
-Padding is handled twice: PAD keys are blocked in attention, and PAD targets are ignored in the cross-entropy loss using \texttt{ignore\_index=PAD\_ID}.
+To prevent information leakage, a causal mask is applied. The mask blocks attention from position \(t\) to any future position \(j > t\). The attention computation is:
+
+\[
+    \text{Attention}(Q,K,V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}} + M\right)V
+\]
+
+where \(M\) is the causal mask. Future positions receive a very negative value before the softmax, forcing their attention probability close to zero.
+
+This means token \(t\) can only use:
+
+\[
+    x_1, x_2, \dots, x_t
+\]
+
+and cannot use:
+
+\[
+    x_{t+1}, x_{t+2}, \dots, x_T.
+\]
 
 \section{Training Objective}
 
-The model is trained with shifted next-token cross-entropy loss. The training code uses the following pattern:
+The model is trained using the next-token prediction objective. For each input sequence, the target is the same sequence shifted one position to the left.
 
-\begin{lstlisting}[style=code, language=Python, caption={Shifted next-token objective.}]
-x_in = batch[:, :-1]
-y_tgt = batch[:, 1:]
+For example, if the input sequence is:
 
-logits, _ = model(x_in)
-loss = F.cross_entropy(
-    logits.reshape(-1, vocab_size),
-    y_tgt.reshape(-1),
-    ignore_index=PAD_ID
-)
+\begin{lstlisting}
+ROMEO:
 \end{lstlisting}
 
-The optimizer is AdamW with weight decay. I also use gradient clipping and a warmup plus cosine decay learning rate schedule. During training, the script saves the best validation checkpoint, the tokenizer, the configuration file, a CSV training log, a loss plot, and final validation results.
+then the model learns to predict each next character after seeing the previous characters.
 
-\section{Evaluation and Generation}
+The loss function is cross-entropy loss:
 
-The model is evaluated with validation negative log-likelihood (NLL) and perplexity:
 \[
-    \text{PPL} = e^{\text{mean NLL}}.
+    \mathcal{L} = - \frac{1}{N}\sum_{i=1}^{N} \log P(y_i \mid x_{\leq i})
 \]
 
-After running training, the exact values should be copied from:
+where \(y_i\) is the correct next token and \(P(y_i \mid x_{\leq i})\) is the probability assigned by the model.
 
-\begin{itemize}[noitemsep]
-    \item \texttt{outputs/final\_results.json}
-    \item \texttt{outputs/training\_log.csv}
+\section{Quick CPU Training Script}
+
+The original full epoch training script was too slow and did not show progress frequently enough on CPU. To solve this, a quick training script was added. Instead of training by full epochs, it trains for a fixed number of random mini-batch steps. This makes the project easier to test on a normal laptop.
+
+The quick training script provides:
+
+\begin{itemize}[leftmargin=*]
+    \item fixed-step training instead of full-epoch training;
+    \item visible progress heartbeat messages;
+    \item validation checks during training;
+    \item automatic best-model checkpoint saving;
+    \item final result files for the report;
+    \item generation test after training.
 \end{itemize}
 
-\begin{table}[h]
+The training batch file runs the quick training script and then tests generation. This makes the project easier for the instructor or another user to reproduce.
+
+\section{How to Run the Project}
+
+From the project directory, activate the Python environment if needed and run:
+
+\begin{lstlisting}[language=bash]
+training.bat
+\end{lstlisting}
+
+The batch file starts quick CPU training and then runs a generation test.
+
+A direct Python command can also be used:
+
+\begin{lstlisting}[language=bash]
+python train_quick_cpu.py --steps 1200
+\end{lstlisting}
+
+After training, generated files are stored in the \texttt{outputs} directory.
+
+\section{Saved Artifacts}
+
+The quick training run saves the following artifacts:
+
+\begin{table}[h!]
 \centering
+\caption{Saved training artifacts}
 \begin{tabular}{ll}
 \toprule
-Metric & Value \\
+\textbf{File} & \textbf{Purpose} \\
 \midrule
-Best validation NLL & \textcolor{red}{Fill from outputs/final\_results.json} \\
-Best validation PPL & \textcolor{red}{Fill from outputs/final\_results.json} \\
-Final training loss & \textcolor{red}{Fill from outputs/training\_log.csv} \\
+\texttt{outputs/best\_model.pt} & Best saved model checkpoint \\
+\texttt{outputs/config.json} & Model and training configuration \\
+\texttt{outputs/tokenizer.json} & Character vocabulary/token mapping \\
+\texttt{outputs/training\_log.csv} & Training and validation metrics \\
+\texttt{outputs/final\_results.json} & Final summary of best metrics \\
+\texttt{outputs/loss\_plot.png} & Plot of loss/perplexity trends \\
 \bottomrule
 \end{tabular}
-\caption{Validation results. Fill values after running \texttt{train.py}.}
-\label{tab:results}
 \end{table}
 
-I tested two decoding methods: greedy decoding and sampling. Greedy decoding always selects the highest-probability next token, so it is deterministic but can become repetitive. Sampling draws from the output distribution and can use temperature, top-$k$, or top-$p$ filtering, so it usually produces more diverse text.
+These files make the project reproducible because they record the trained model, configuration, tokenizer, and results.
 
-Example generation commands:
+\section{Training Results}
 
-\begin{lstlisting}[style=code, language=bash]
-python generate.py --prompt "ROMEO:" --method greedy --max_new_tokens 300
-python generate.py --prompt "ROMEO:" --method sample --temperature 0.8 --top_k 20 --max_new_tokens 300
-python generate.py --prompt "JULIET:" --method sample --temperature 0.9 --top_p 0.9 --max_new_tokens 300
+The model was tested with a quick CPU run for 1200 steps. During training, the validation negative log-likelihood and perplexity improved significantly.
+
+\begin{table}[h!]
+\centering
+\caption{Quick CPU training result summary}
+\begin{tabular}{lll}
+\toprule
+\textbf{Metric} & \textbf{Initial / Earlier Value} & \textbf{Best Final Value} \\
+\midrule
+Validation NLL & approximately 4.3241 & 2.4855 \\
+Validation Perplexity & approximately 75.50 & 12.01 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Figure~\ref{fig:loss-plot} shows the training and validation loss curves from the quick CPU run. Both curves drop quickly during the early training steps and then stabilize near the final range, which supports that the model is learning from the dataset rather than remaining random.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.92\textwidth]{loss_plot.png}
+    \caption{Quick GPT decoder training loss curve for the 1200-step CPU run.}
+    \label{fig:loss-plot}
+\end{figure}
+
+The final log reported:
+
+\begin{lstlisting}
+Best validation NLL: 2.4855
+Best validation PPL: 12.01
+Saved artifacts to: outputs
 \end{lstlisting}
 
-For the final submission, I will include at least 10 generated samples with prompts and decoding settings. The recommended prompts are \texttt{ROMEO:}, \texttt{JULIET:}, \texttt{KING:}, \texttt{To be}, and \texttt{My lord}.
+This confirms that the model was learning. A lower negative log-likelihood means the model assigned higher probability to correct next tokens. A lower perplexity means the model became less uncertain about the next character prediction.
 
-\section{Analysis}
+\section{Generation Test}
 
-\subsection{Greedy Decoding vs. Sampling}
+After training, the model was tested using a prompt beginning with \texttt{ROMEO:}. The generated output was not perfect English, but it showed that the complete pipeline works: the trained checkpoint can be loaded, the prompt can be encoded, the model can autoregressively sample next tokens, and the generated tokens can be decoded back into text.
 
-Greedy decoding is stable and reproducible, but it may repeat common patterns because it always chooses the most likely next character. Sampling is less deterministic and produces more varied text. With a moderate temperature such as 0.8 and top-$k=20$, the model can produce more diverse Shakespeare-like text while still avoiding very unlikely characters.
+Example generated text from the quick run:
 
-\subsection{Common Failure Modes}
+\begin{lstlisting}
+ROMEO:
+TRI:
+MGO:
+D ce cendoulrthiat be, bne hrino ou ir dofourthite ive berel,
 
-Because this is a small character-level model, it may learn local spelling, punctuation, and line-break patterns before learning long-range structure. Common failure modes include repeated words, broken names, inconsistent dialogue structure, and text that looks Shakespeare-like at the character level but does not always have coherent meaning. These limitations are expected for a small model, short context length, and limited training time.
-
-\section{Reproducibility}
-
-The main reproducible training command is:
-
-\begin{lstlisting}[style=code, language=bash]
-python train.py --seed 42 --epochs 5 --batch_size 16 --block_size 128 --d_model 128 --n_heads 4 --n_layers 2 --lr 3e-4
+Whye t to s wimas lllf ck reare re itonouleas lir ha f inat toreara sthar y
 \end{lstlisting}
 
-The code saves all important artifacts in the \texttt{outputs/} folder. These include the model checkpoint, tokenizer, training log, configuration file, final result JSON, and loss plot. This allows the training setup and reported results to be checked later.
+The output is expected to be noisy because the model is intentionally small and trained briefly on CPU. The purpose of the quick run is reproducibility and verification, not production-quality text generation.
+
+\section{Discussion}
+
+The training results show that the decoder-only Transformer implementation is functioning correctly. The validation perplexity decreased from about 75.50 to 12.01, which is a strong sign that the model learned useful character-level patterns from the dataset.
+
+The quick CPU training version is useful for a homework submission because it avoids long full-epoch training and gives immediate evidence that the code works. It also prints regular progress messages so the user can see that training is active.
+
+For better generated text, the model could be trained longer, increased in size, or trained on a larger dataset. However, for this assignment, the current result is enough to demonstrate the core concepts:
+
+\begin{itemize}[leftmargin=*]
+    \item causal masking prevents future-token leakage;
+    \item next-token prediction trains the language model;
+    \item the validation loss and perplexity improve during training;
+    \item the model can save checkpoints and generate text.
+\end{itemize}
+
+\section{Limitations}
+
+The current implementation is intentionally small and CPU-friendly. Because of that, the generated text is still noisy and not fully coherent. The main limitations are:
+
+\begin{itemize}[leftmargin=*]
+    \item small number of trainable parameters;
+    \item character-level tokenization instead of subword tokenization;
+    \item short training time;
+    \item CPU-only training;
+    \item limited dataset size.
+\end{itemize}
+
+These limitations are acceptable for a classroom demonstration because the goal is to show a working decoder-only Transformer training pipeline, not to build a large production language model.
 
 \section{Conclusion}
 
-This project implements the core mechanism of GPT-style language modeling: a decoder-only Transformer with causal self-attention and a shifted next-token prediction objective. The causal mask ensures that each token only uses past context, while the language modeling head predicts the next token at every position. The implementation is small but complete enough to demonstrate training, validation perplexity, and text generation using greedy and sampling-based decoding.
+This project successfully implements and tests a GPT-style decoder-only Transformer for next-token prediction. The model uses causal self-attention to prevent access to future tokens and learns through cross-entropy loss. A quick CPU training script was added to make the project reproducible and easy to test. The final quick run achieved a best validation NLL of 2.4855 and a best validation perplexity of 12.01, confirming that the training process works correctly.
 
-\begin{thebibliography}{9}
+\appendix
+\section{Training Evidence Screenshot}
 
-\bibitem{karpathy}
-A. Karpathy, \textit{Tiny Shakespeare dataset}, char-rnn GitHub repository. Available: \url{https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt}
+Figure~\ref{fig:terminal} shows the terminal output from the successful training run. The screenshot confirms that the model completed 1200 training steps, saved the best checkpoint, created the output artifacts, and ran a generation test.
 
-\bibitem{vaswani}
-A. Vaswani et al., ``Attention Is All You Need,'' 2017.
-
-\bibitem{pytorch}
-PyTorch Documentation. Available: \url{https://pytorch.org/docs/stable/index.html}
-
-\end{thebibliography}
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.95\textwidth]{training_terminal_screenshot.png}
+    \caption{Terminal output from the successful quick CPU training run.}
+    \label{fig:terminal}
+\end{figure}
 
 \end{document}
