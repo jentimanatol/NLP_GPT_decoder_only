@@ -4,7 +4,7 @@
   "seed": 42,
   "block_size": 48,
   "batch_size": 8,
-  "steps": 120,
+  "steps": 1200,
   "eval_every": 20,
   "eval_batches": 8,
   "d_model": 48,
