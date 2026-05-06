@@ -29,7 +29,7 @@ echo.
 echo Starting quick CPU training...
 echo.
 
-python train_quick_cpu.py --steps 120 --eval_every 20 --eval_batches 8 --batch_size 8 --block_size 48 --d_model 48 --n_heads 4 --n_layers 2 --d_ff 128 --lr 8e-4 --warmup_steps 10
+python train_quick_cpu.py --steps 1200 --eval_every 20 --eval_batches 8 --batch_size 8 --block_size 48 --d_model 48 --n_heads 4 --n_layers 2 --d_ff 128 --lr 8e-4 --warmup_steps 10
 
 if errorlevel 1 (
     echo.
