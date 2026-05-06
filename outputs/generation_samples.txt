@@ -3,24 +3,39 @@ HW2 Part I GPT Decoder Generation Samples
  
 [Example 1: Greedy decoding, prompt ROMEO:] 
 ROMEO:
-The the he the the the the the the t the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the th
+The he the than the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the the
  
 ------------------------------------------------------------ 
  
 [Example 2: Sampling, prompt ROMEO:, temperature 0.8, top_k 20] 
 ROMEO:
+OF tharust thanon mand ll t arer.
+LI:
 
+I ghat hingeatheeve fathe, isththe st t be bes as d do I seachas fowers withanthit yowar hanepl n mas, n s my, aid sth y,
 
-SCHIRO se mand y wtareren go f,NGnsourilowour s urd mathoud hitincottt st th s ithe m oe y ane whis ait. tthaeoor irhe raoilorilherouss wei aiy w tl fathou inominou tor ny dels hae thenooithaalel nethild d sern at IUoi home bethiorithh erisorulae hithhe t ioat.yourd to bahi hirt d e lar sersl ber
+The afomy caldareratheneart hetld t ch my wit d d achyochith t s.
+Anowevine, lles by bandondasir he ay thethas ay le he thous.
+I ssit in 
  
 ------------------------------------------------------------ 
  
 [Example 3: Sampling, prompt To be, temperature 0.9, top_k 40] 
-To be atitiv t hthe
-Le v the yo-n bilouuEakvsss biay esoser merindenA:Aorton aththis y twgereit-o anlangharsv y hiulene ane he othel sile t serrees
+To be arcy: thadoaps,
+Yarard aveyo o thave he we sst!o's, had ria the?
+And hos ango sh, knk;
 
-To cI s oulisl athbharayola winthiea t dil solinI.
-vour to. kio: d krepoy dall siglisn harh iis althl owiy S Stha yoa heor the ipgrhe aiso an ge iwy ofhawy 
+AUn, ngeao hilllirerse way t g thandinti the, iert
+
+Os VEDO;
+AD s hesivil ilavis s out hovelangsh, go d s panilerourit
+As jELO fed, hanches he inere'sis his,
+
+
+
+INGEEIENGolllal, t Wy ulat:
+ENCUOPKS:
+AROCE y cheh
  
 ------------------------------------------------------------ 
  
