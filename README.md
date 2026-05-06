@@ -93,7 +93,9 @@ The model improved during training, which confirms that the decoder-only Transfo
 
 The plot below shows training loss and validation negative log-likelihood decreasing during the 1200-step CPU training run.
 
-![Quick GPT Decoder Training Loss](loss_plot.png)
+
+
+![Quick GPT Decoder Training Loss](tex/figures/loss_plot.png)
 
 The validation perplexity reached approximately **12.01**, which is acceptable for a small character-level CPU-trained demo model.
 
@@ -103,7 +105,7 @@ The validation perplexity reached approximately **12.01**, which is acceptable f
 
 The terminal output confirms that the training completed successfully and saved the expected output files.
 
-![Training Terminal Screenshot](training_terminal_screenshot.png)
+![Training Terminal Screenshot](tex/figures/training_terminal_screenshot.png)
 
 Created output files:
 
