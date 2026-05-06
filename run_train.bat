@@ -22,14 +22,16 @@ pip install -r requirements.txt
 
 echo.
 echo Starting FAST training...
-
+echo python train_fast.py --seed 42 --max_steps 1000 --eval_every 100 --eval_batches 20 --batch_size 16 --block_size 64 --d_model 64 --n_heads 4 --n_layers 2 --d_ff 256 --lr 5e-4 --warmup_steps 20
 @REM echo Model: d_model=64, heads=4, layers=2, block_size=64, epochs=1
-echo python train.py --seed 42 --epochs 1 --batch_size 16 --block_size 64 --d_model 64 --n_heads 4 --n_layers 2 --d_ff 256 --lr 5e-4 --warmup_steps 20
+@REM echo python train.py --seed 42 --epochs 1 --batch_size 16 --block_size 64 --d_model 64 --n_heads 4 --n_layers 2 --d_ff 256 --lr 5e-4 --warmup_steps 20
 echo.
 
 @REM python train.py --seed 42 --epochs 2 --batch_size 16 --block_size 64 --d_model 64 --n_heads 4 --n_layers 2 --d_ff 256 --lr 5e-4 --warmup_steps 20
 
-python train.py --seed 42 --epochs 1 --batch_size 16 --block_size 64 --d_model 64 --n_heads 4 --n_layers 2 --d_ff 256 --lr 5e-4 --warmup_steps 20
+@REM python train.py --seed 42 --epochs 1 --batch_size 16 --block_size 64 --d_model 64 --n_heads 4 --n_layers 2 --d_ff 256 --lr 5e-4 --warmup_steps 20
+
+python train_fast.py --seed 42 --max_steps 1000 --eval_every 100 --eval_batches 20 --batch_size 16 --block_size 64 --d_model 64 --n_heads 4 --n_layers 2 --d_ff 256 --lr 5e-4 --warmup_steps 20
 
 echo.
 echo Training finished. Check the outputs folder:
